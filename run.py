@@ -4,6 +4,7 @@ import torch
 from exp.exp_main import Exp_Main
 import random
 import numpy as np
+from datetime import datetime
 
 
 def set_seed(seed):
@@ -109,16 +110,22 @@ for ii in range(args.itr):
         args.K,
         args.learning_rate,
         args.des, ii)
+    
+    # Create a timestamp-based folder name with essential model info
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    folder_name = '{}_{}_{}_{}'.format(timestamp, args.model, args.data, args.pred_len)
+    if args.itr > 1:
+        folder_name += f'_run{ii}'
 
-    if os.path.exists(os.path.join(args.checkpoints, setting)):
+    if os.path.exists(os.path.join(args.checkpoints, folder_name)):
         continue
 
     exp = Exp(args)  # set experiments
     print('>>>>>>>start training : {}>>>>>>>>>>>>>>>>>>>>>>>>>>'.format(setting))
-    exp.train(setting)
+    exp.train(setting, folder_name)
 
     print('>>>>>>>testing : {}<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<'.format(setting))
-    exp.test(setting, data='val')
-    exp.test(setting, data='test')
+    exp.test(setting, data='val', folder_name=folder_name)
+    exp.test(setting, data='test', folder_name=folder_name)
 
     torch.cuda.empty_cache()

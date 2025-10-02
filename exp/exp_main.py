@@ -11,6 +11,8 @@ import torch.nn as nn
 
 import os
 import time
+import json
+from datetime import datetime
 
 import warnings
 import numpy as np
@@ -104,14 +106,32 @@ class Exp_Main(Exp_Basic):
         self.model.train()
         return total_loss
 
-    def train(self, setting):
+    def train(self, setting, folder_name=None):
+        if folder_name is None:
+            folder_name = setting
         train_data, train_loader = self._get_data(flag='train')
         vali_data, vali_loader = self._get_data(flag='val')
         test_data, test_loader = self._get_data(flag='test')
 
-        path = os.path.join(self.args.checkpoints, setting)
+        path = os.path.join(self.args.checkpoints, folder_name)
         if not os.path.exists(path):
             os.makedirs(path)
+        
+        # Create results folder for logs
+        results_path = os.path.join('./results', folder_name)
+        if not os.path.exists(results_path):
+            os.makedirs(results_path)
+
+        # Initialize logging
+        log_data = {
+            'experiment_config': vars(self.args),
+            'setting': setting,
+            'start_time': datetime.now().isoformat(),
+            'train_samples': len(train_data),
+            'val_samples': len(vali_data),
+            'test_samples': len(test_data),
+            'epochs': []
+        }
 
         time_now = time.time()
 
@@ -167,6 +187,27 @@ class Exp_Main(Exp_Basic):
 
             print("Epoch: {0}, Steps: {1} | Train Loss: {2:.7f} Vali Loss: {3:.7f} Test Loss: {4:.7f}".format(
                 epoch + 1, train_steps, train_loss, vali_loss, test_loss))
+            
+            # Log epoch metrics
+            epoch_log = {
+                'epoch': epoch + 1,
+                'train_loss': float(train_loss),
+                'val_loss': float(vali_loss),
+                'test_loss': float(test_loss),
+                'epoch_time': time.time() - epoch_time,
+                'learning_rate': model_optim.param_groups[0]['lr']
+            }
+            log_data['epochs'].append(epoch_log)
+            
+            # Save training log after each epoch for monitoring
+            log_data['last_epoch'] = epoch + 1
+            log_data['current_time'] = datetime.now().isoformat()
+            log_data['total_training_time_so_far'] = time.time() - time_now
+            
+            log_path = os.path.join(results_path, 'training_log.json')
+            with open(log_path, 'w') as f:
+                json.dump(log_data, f, indent=2)
+            
             early_stopping(vali_loss, self.model, path)
             if early_stopping.early_stop:
                 print("Early stopping")
@@ -176,15 +217,28 @@ class Exp_Main(Exp_Basic):
 
         best_model_path = path + '/' + 'checkpoint.pth'
         self.model.load_state_dict(torch.load(best_model_path))
+        
+        # Save training log
+        log_data['end_time'] = datetime.now().isoformat()
+        log_data['total_training_time'] = time.time() - time_now
+        log_data['early_stopped'] = early_stopping.early_stop
+        log_data['best_val_loss'] = float(early_stopping.best_score) if early_stopping.best_score is not None else None
+        
+        log_path = os.path.join(results_path, 'training_log.json')
+        with open(log_path, 'w') as f:
+            json.dump(log_data, f, indent=2)
+        print(f"Training log saved to {log_path}")
 
         return self.model
 
-    def test(self, setting, data, save_vals=False):
+    def test(self, setting, data, save_vals=False, folder_name=None):
+        if folder_name is None:
+            folder_name = setting
         """data - 'val' or 'test' """
         test_data, test_loader = self._get_data(flag=data)
 
         print('loading model')
-        self.model.load_state_dict(torch.load(os.path.join('./checkpoints/' + setting, 'checkpoint.pth')))
+        self.model.load_state_dict(torch.load(os.path.join('./checkpoints/' + folder_name, 'checkpoint.pth')))
 
         preds = []
         trues = []
@@ -224,12 +278,33 @@ class Exp_Main(Exp_Basic):
         print('test shape:', preds.shape, trues.shape)
 
         # result save
-        folder_path = './results/' + setting + '/'
+        folder_path = './results/' + folder_name + '/'
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
 
         mae, mse, rmse, mape, mspe = metric(preds, trues)
         print('mse:{}, mae:{}'.format(mse, mae))
+        
+        # Save test results to JSON
+        test_results = {
+            'dataset': data,
+            'setting': setting,
+            'test_time': datetime.now().isoformat(),
+            'metrics': {
+                'mae': float(mae),
+                'mse': float(mse),
+                'rmse': float(rmse),
+                'mape': float(mape),
+                'mspe': float(mspe)
+            },
+            'prediction_shape': list(preds.shape),
+            'true_shape': list(trues.shape)
+        }
+        
+        result_path = os.path.join(folder_path, f'test_results_{data}.json')
+        with open(result_path, 'w') as f:
+            json.dump(test_results, f, indent=2)
+        print(f"Test results saved to {result_path}")
 
         np.save(folder_path + f'{data}_metrics.npy', np.array([mae, mse, rmse, mape, mspe]))
 
