@@ -1,0 +1,15 @@
+# Dependencias para analisis de notebooks
+jupyter==1.0.0
+notebook==7.0.6
+ipykernel==6.27.1
+
+# Analisis de datos
+pandas==2.1.4
+numpy==1.24.3
+
+# Visualizacion
+matplotlib==3.8.2
+seaborn==0.13.0
+
+# Opcional: widgets interactivos
+ipywidgets==8.1.1
