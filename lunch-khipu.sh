@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=torch
+#SBATCH --job-name=gipo_torch
 #SBATCH --partition=gpu
 #SBATCH --output=logs/dl_run_%j.out
 #SBATCH --error=logs/dl_run_%j.err

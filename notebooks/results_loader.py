@@ -201,23 +201,50 @@ def format_metric_table(table: pd.DataFrame, metric_name: str,
     return formatted
 
 
-def load_predictions(folder: Path) -> Tuple[np.ndarray, np.ndarray]:
+def load_predictions(folder: Path, target_idx: int = -1) -> Tuple[np.ndarray, np.ndarray]:
     """
     Carga predicciones y valores reales desde una carpeta de experimento.
 
     Args:
         folder: Carpeta del experimento
+        target_idx: Índice de la variable objetivo (default -1 para OT)
 
     Returns:
-        Tupla (predicciones, valores_reales) o (None, None) si no existen
+        Tupla (predicciones, valores_reales) de shape (samples, horizon) o (None, None) si no existen
     """
     pred_file = folder / "pred.npy"
     true_file = folder / "true.npy"
 
     if pred_file.exists() and true_file.exists():
-        preds = np.load(pred_file)
-        trues = np.load(true_file)
-        return preds, trues
+        preds = np.load(pred_file)  # Shape: (samples, horizon, features)
+        trues = np.load(true_file)  # Shape: (samples, horizon, features)
+
+        # Extraer solo la variable objetivo (OT)
+        preds_ot = preds[:, :, target_idx]  # Shape: (samples, horizon)
+        trues_ot = trues[:, :, target_idx]  # Shape: (samples, horizon)
+
+        return preds_ot, trues_ot
+
+    return None, None
+
+
+def get_prediction_for_sample(folder: Path, sample_idx: int, target_idx: int = -1) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Obtiene las predicciones y valores reales para una muestra específica.
+
+    Args:
+        folder: Carpeta del experimento
+        sample_idx: Índice de la muestra
+        target_idx: Índice de la variable objetivo (default -1 para OT)
+
+    Returns:
+        Tupla (pred_sample, true_sample) de shape (horizon,) o (None, None) si no existen
+    """
+    preds, trues = load_predictions(folder, target_idx)
+
+    if preds is not None and trues is not None:
+        if sample_idx < len(preds):
+            return preds[sample_idx], trues[sample_idx]
 
     return None, None
 

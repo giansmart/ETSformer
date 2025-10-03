@@ -125,7 +125,7 @@ for ii in range(args.itr):
     exp.train(setting, folder_name)
 
     print('>>>>>>>testing : {}<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<'.format(setting))
-    exp.test(setting, data='val', folder_name=folder_name)
-    exp.test(setting, data='test', folder_name=folder_name)
+    exp.test(setting, data='val', folder_name=folder_name, save_vals=True)
+    exp.test(setting, data='test', folder_name=folder_name, save_vals=True)
 
     torch.cuda.empty_cache()

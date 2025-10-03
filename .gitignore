@@ -153,6 +153,7 @@ datasets/
 logs/
 outputs/
 results/
+results*/
 runs/
 wandb/
 mlruns/
